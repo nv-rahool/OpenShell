@@ -5,7 +5,9 @@ $source = (Get-Location).Path
 $env:CARGO_TARGET_DIR = Join-Path $source 'target'
 $env:CARGO_INCREMENTAL = '0'
 $env:OPENSHELL_WINDOWS_BUILD_JOBS = '4'
-$env:OPENSHELL_IMAGE_TAG = '0.1.8'
+$releaseVersion = $env:RELEASE_VERSION
+if ($releaseVersion -notmatch '^\d+\.\d+\.\d+$') { throw 'RELEASE_VERSION must be MAJOR.MINOR.PATCH' }
+$env:OPENSHELL_IMAGE_TAG = $releaseVersion
 $env:MISE_TRUSTED_CONFIG_PATHS = $source
 $env:CARGO_HOME = Join-Path $env:USERPROFILE '.cargo'
 $pairs = @(
@@ -36,7 +38,7 @@ $env:AWS_LC_SYS_CFLAGS = if ($Architecture -eq 'arm64') {
 # Match the existing release version-stamping convention without inventing a tag.
 $cargo = Get-Content -Raw Cargo.toml
 if ($cargo -notmatch '(?m)^version = "0\.0\.0"\r?$') { throw 'Unexpected workspace version' }
-[IO.File]::WriteAllText((Join-Path $source 'Cargo.toml'), ($cargo -replace '(?m)^version = "0\.0\.0"\r?$', 'version = "0.1.8"'))
+[IO.File]::WriteAllText((Join-Path $source 'Cargo.toml'), ($cargo -replace '(?m)^version = "0\.0\.0"\r?$', "version = `"$releaseVersion`""))
 # Git-derived development versions must not override the stamped package version.
 $env:GIT_DIR = Join-Path $env:RUNNER_TEMP 'absent-release-git'
 & mise run --skip-tools "windows:build:$Architecture"
@@ -63,12 +65,12 @@ foreach ($name in @('openshell.exe','openshell-gateway.exe','openshell-superviso
     Copy-Item $path $out
     if ($name.EndsWith('.exe')) {
         $version = & $path --version
-        if ($LASTEXITCODE -ne 0 -or "$version" -notmatch '0\.1\.8') { throw "Executable version/launch failed: $name" }
+        if ($LASTEXITCODE -ne 0 -or "$version" -notmatch [regex]::Escape($releaseVersion)) { throw "Executable version/launch failed: $name" }
     }
     $signature = Get-AuthenticodeSignature $path
     $files += @{ file=$name; sha256=(Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant(); signature=$signature.Status.ToString() }
 }
-@{architecture=$Architecture; source=$env:SOURCE_SHA; rust=(& rustc --version); runner=$env:RUNNER_ARCH; version='0.1.8'; launchChecks='passed'; files=$files} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $out 'build-record.json')
+@{architecture=$Architecture; source=$env:SOURCE_SHA; rust=(& rustc --version); runner=$env:RUNNER_ARCH; version=$releaseVersion; launchChecks='passed'; files=$files} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $out 'build-record.json')
 $validation = Join-Path $env:GITHUB_WORKSPACE "validation-$Architecture"
 New-Item -ItemType Directory -Force $validation | Out-Null
 $fixture = Join-Path $env:CARGO_TARGET_DIR "$target/release/examples/mxc-forwarding-agent.exe"

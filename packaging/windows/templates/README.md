@@ -1,8 +1,8 @@
-# OpenShell Windows 0.1.8 (arm64)
+# OpenShell Windows @VERSION@ (arm64)
 
 **Unsigned candidate, not ready for release.** See VALIDATION.md for passed checks and remaining limitations.
 
-This portable kit is built from [NVIDIA/OpenShell's windows branch](https://github.com/NVIDIA/OpenShell/tree/@SOURCE_SHA@), commit `@SOURCE_SHA@`. The Rust binaries and SDKs are versioned `0.1.8`. These Windows sources differ from the main-branch `v0.1.8` tag.
+This portable kit is built from [NVIDIA/OpenShell's windows branch](https://github.com/NVIDIA/OpenShell/tree/@SOURCE_SHA@), commit `@SOURCE_SHA@`. The Rust binaries and SDKs are versioned `@VERSION@`. These Windows sources differ from the main-branch `v@VERSION@` tag.
 
 Read KNOWN-LIMITATIONS.md before running workloads. The Windows runtime is under development and is not a production-qualified isolation boundary. Consult release-manifest.json and VALIDATION.md for this kit's actual signing and validation status.
 
@@ -27,7 +27,7 @@ Verify the downloaded ZIP using its GitHub attestation and checksum as described
 .\scripts\Start-OpenShell.ps1
 ```
 
-Initialization creates private per-installation keys and state under `%LOCALAPPDATA%\OpenShell\Windows-0.1.8`. Existing initialization is not overwritten. Use `-StateDirectory` consistently for another installation, and `-Port` during initialization if 17670 is occupied.
+Initialization creates private per-installation keys and state under `%LOCALAPPDATA%\OpenShell\Windows-@VERSION@`. Existing initialization is not overwritten. Use `-StateDirectory` consistently for another installation, and `-Port` during initialization if 17670 is occupied.
 
 The foreground gateway listens on `http://127.0.0.1:17670` without user authentication. Any local process can call it. Use only on a trusted development host and do not expose it on a network. Internal supervisor authentication uses the generated keys. The gateway database is in memory; delete sandboxes before stopping the gateway and recreate them after restart.
 
@@ -43,7 +43,7 @@ For TypeScript:
 
 ```powershell
 Push-Location .\examples\typescript
-npm install ..\..\sdk\nvidia-openshell-sdk-0.1.8.tgz
+npm install ..\..\sdk\nvidia-openshell-sdk-@VERSION@.tgz
 node .\harness.mjs
 Pop-Location
 ```
@@ -54,7 +54,7 @@ For the Python health check, select an interpreter supported by grpcio:
 
 ```powershell
 uv venv .venv
-uv pip install --python .venv\Scripts\python.exe .\sdk\openshell-0.1.8-py3-none-any.whl
+uv pip install --python .venv\Scripts\python.exe .\sdk\openshell-@VERSION@-py3-none-any.whl
 uv run --no-project --python .venv\Scripts\python.exe .\examples\python\health.py
 ```
 

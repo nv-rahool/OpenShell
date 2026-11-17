@@ -11,7 +11,7 @@ import zipfile
 
 ROOT = Path(os.environ['GITHUB_WORKSPACE'])
 SOURCE = os.environ['SOURCE_SHA']
-VERSION = '0.1.8'
+VERSION = os.environ['RELEASE_VERSION']
 RUN = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
 TEMPLATES = Path(__file__).parent / 'templates'
 PE_FILES = ('openshell.exe', 'openshell-gateway.exe', 'openshell-supervisor.exe', 'openshell-windows-sandbox.exe', 'libz3.dll')
@@ -63,6 +63,9 @@ inventory = []
 for arch, machine in (('arm64', 0xAA64), ('x64', 0x8664)):
     kit = ROOT / 'kits' / f'OpenShell-Windows-{VERSION}-{arch}'
     shutil.copytree(TEMPLATES, kit)
+    for text in kit.rglob('*'):
+        if text.is_file() and text.suffix in ('.md', '.ps1', '.mjs', '.py', '.template', '.yaml'):
+            text.write_bytes(text.read_bytes().replace(b'@VERSION@', VERSION.encode()))
     sboms = list((ROOT / 'source/deploy/sbom/output').glob('*.cdx.json'))
     assert len(sboms) == 1, 'Expected freshly generated source SBOM'
     sbom = json.loads(sboms[0].read_text())
@@ -94,11 +97,11 @@ for arch, machine in (('arm64', 0xAA64), ('x64', 0x8664)):
         shutil.copy2(binary, kit / 'bin' / name)
         inventory.append({'architecture': arch, 'file': f'{kit.name}/bin/{name}', 'sha256': digest(binary), 'authenticode': 'pending'})
     shutil.copytree(ROOT / 'inputs/sdk', kit / 'sdk')
-    assert sorted(p.name for p in (kit / 'sdk').iterdir()) == ['nvidia-openshell-sdk-0.1.8.tgz', 'openshell-0.1.8-py3-none-any.whl']
+    assert sorted(p.name for p in (kit / 'sdk').iterdir()) == [f'nvidia-openshell-sdk-{VERSION}.tgz', f'openshell-{VERSION}-py3-none-any.whl']
     (kit / 'BUILD.md').write_text(f'''# Build record
 
 Product source: NVIDIA/OpenShell windows branch, commit `{SOURCE}`.
-Version: {VERSION}, stamped in the workspace manifest. This is different from the main-branch v0.1.8 tag.
+Version: {VERSION}, stamped in the workspace manifest. This is different from the main-branch v{VERSION} tag.
 Workflow: {RUN}
 Automation commit: `{os.environ['GITHUB_SHA']}`.
 
@@ -131,7 +134,7 @@ For finalization, obtain valid timestamped Authenticode signatures on all four E
         'packageStatus': 'unsigned-candidate-not-release-ready',
         'source': {'repository': 'https://github.com/NVIDIA/OpenShell', 'branch': 'windows', 'commit': SOURCE, 'versionStamp': VERSION},
         'build': {'workflowRun': RUN, 'automationCommit': os.environ['GITHUB_SHA'], 'builtByThisWorkflow': True},
-        'intendedRelease': {'repository': 'NVIDIA/OpenShell', 'tag': 'v0.1.8', 'matchesReleaseTagSource': False},
+        'intendedRelease': {'repository': 'NVIDIA/OpenShell', 'tag': f'v{VERSION}', 'matchesReleaseTagSource': False},
         'signing': {'authenticode': 'pending', 'githubArchiveAttestation': 'detached-verify-after-download'},
         'validation': {'nativeLaunchChecks': 'passed', 'runtimeReport': 'external-bound-to-sha256', 'finalSignedBytesValidated': False},
         'files': [{'path': p.relative_to(kit).as_posix(), 'size': p.stat().st_size, 'sha256': digest(p)} for p in sorted(kit.rglob('*')) if p.is_file()],
